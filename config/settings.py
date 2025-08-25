@@ -21,9 +21,9 @@ class Settings:
     RECORD_SEPARATOR: str = "~"
 
     # Collections Names
-    COMCEPTOS_COLLECTION: str = "conceptos"
+    CONCEPTOS_COLLECTION: str = "conceptos"
     DESCOMPOSICIONES_COLLECTION: str = "descomposiciones"
-    MEDICIONES_COLLECTION: str = "medicioles"
+    MEDICIONES_COLLECTION: str = "mediciones"
     TEXTOS_COLLECTION: str = "textos"
     METADATA_COLLECTION: str = "metadata"
 

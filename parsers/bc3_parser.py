@@ -14,7 +14,7 @@ import re
 logger = logging.getLogger(__name__)
 
 
-class BC3PARSER:
+class BC3Parser:
     """Lee el BC3 al completo"""
 
     def __init__(
@@ -68,7 +68,7 @@ class BC3PARSER:
                 'descomposiciones': self.descomposiciones,
                 'mediciones': self.mediciones,
                 'textos': self.textos,
-                'textos_pliego': self.textos_pliego
+                'textos_pliego': self.textos_pliegos
             }
 
         except Exception as e:
@@ -86,7 +86,7 @@ class BC3PARSER:
         if not path.exists():
             raise FileNotFoundError(
                 "El archivo seleccionado parece no existir"
-                )
+            )
 
         try:
             with open(filepath, 'r', encoding=self.encoding) as f:

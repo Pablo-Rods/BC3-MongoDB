@@ -141,7 +141,7 @@ class RecordParser:
                     if linea:
                         medicion.lineas_medición.append(linea)
 
-            return Medicion
+            return medicion
 
         except Exception as e:
             logger.error(f"Error parseando medición: {e}")
@@ -223,7 +223,7 @@ class RecordParser:
 
             linea = LineaMedicion(
                 archivo_origen=archivo_origen
-                )
+            )
 
             if len(partes) > 0 and partes[0]:
                 try:
@@ -258,7 +258,7 @@ class RecordParser:
 
         field = field.strip()
 
-        field = field.removeprefix('\\\\', '\\')
+        field = field.replace('\\\\', '\\')
         field = field.replace('\\n', '\n')
         field = field.replace('\\t', '\\')
 

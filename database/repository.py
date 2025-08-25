@@ -1,3 +1,4 @@
+from decimal import Decimal
 from database.connection import MongoDBConnection
 from models.descomposicion import Descomposicion
 from models.texto import Texto, TextoPliego
@@ -43,7 +44,7 @@ class BC3Repository:
         Returns:
             Estadísticas de la operación
         """
-        if not self.connection.is_connected():
+        if not self.connection._is_connected():
             logger.error("No hay conexión a la base de datos")
             return self.stats
 
@@ -119,6 +120,8 @@ class BC3Repository:
             metadata['_id'] = (
                 f"{metadata['archivo']}_{datetime.now().isoformat()}")
 
+            metadata = self._convert_decimals(metadata)
+
             collection.insert_one(metadata)
             logger.info(
                 f"Metadata guardada para archivo: {metadata['archivo']}")
@@ -135,28 +138,26 @@ class BC3Repository:
             return
 
         try:
-            documentos = [concepto.to_mongo() for concepto in conceptos]
+            for concepto in conceptos:
+                try:
+                    doc = concepto.to_mongo()
+                    # Asegurar conversión de Decimals
+                    doc = self._convert_decimals(doc)
 
-            if documentos:
-                # Usar upsert para evitar duplicados
-                for doc in documentos:
-                    try:
-                        collection.update_one(
-                            {'codigo': doc.get('codigo'),
-                             'archivo_origen': doc.get(
-                                'archivo_origen')},
-                            {'$set': doc},
-                            upsert=True
-                        )
-                        self.stats['conceptos_insertados'] += 1
-                    except Exception as e:
-                        logger.warning(
-                            "Error insertando concepto" +
-                            f"{doc.get('codigo')}: {e}")
+                    collection.update_one(
+                        {'codigo': doc.get('codigo'),
+                         'archivo_origen': doc.get(
+                            'archivo_origen')},
+                        {'$set': doc},
+                        upsert=True
+                    )
+                    self.stats['conceptos_insertados'] += 1
+                except Exception as e:
+                    logger.warning(
+                        f"Error insertando concepto {concepto.codigo}: {e}")
 
-                logger.info(
-                    f"Insertados {self.stats['conceptos_insertados']}" +
-                    "conceptos")
+            logger.info(
+                f"Insertados {self.stats['conceptos_insertados']} conceptos")
 
         except Exception as e:
             logger.error(f"Error guardando conceptos: {e}")
@@ -170,7 +171,12 @@ class BC3Repository:
             return
 
         try:
-            documentos = [desc.to_mongo() for desc in descomposiciones]
+            documentos = []
+            for desc in descomposiciones:
+                doc = desc.to_mongo()
+                # Asegurar conversión de Decimals
+                doc = self._convert_decimals(doc)
+                documentos.append(doc)
 
             if documentos:
                 result = collection.insert_many(documentos, ordered=False)
@@ -199,7 +205,12 @@ class BC3Repository:
             return
 
         try:
-            documentos = [med.to_mongo() for med in mediciones]
+            documentos = []
+            for med in mediciones:
+                doc = med.to_mongo()
+                # Asegurar conversión de Decimals
+                doc = self._convert_decimals(doc)
+                documentos.append(doc)
 
             if documentos:
                 result = collection.insert_many(documentos, ordered=False)
@@ -278,3 +289,13 @@ class BC3Repository:
         except Exception as e:
             logger.error(f"Error guardando textos de pliego: {e}")
             self.stats['errores'].append(f"Textos pliego: {str(e)}")
+
+    def _convert_decimals(self, obj: Any) -> Any:
+        """Convierte recursivamente todos los Decimal a float"""
+        if isinstance(obj, Decimal):
+            return float(obj)
+        elif isinstance(obj, dict):
+            return {k: self._convert_decimals(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_decimals(item) for item in obj]
+        return obj
