@@ -174,7 +174,7 @@ class RecordParser:
             logger.error(f"Error parseando texto: {e}")
             return None
 
-    def parse_text0_pliego(
+    def parse_texto_pliego(
         self,
         record: str,
         archivo_origen: str = None
