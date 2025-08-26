@@ -5,7 +5,7 @@ from models.concepto import Concepto
 from config.settings import settings
 
 from decimal import Decimal, InvalidOperation
-from typing import Optional
+from typing import Optional, List
 
 import logging
 
@@ -75,9 +75,10 @@ class RecordParser:
                 archivo_origen=archivo_origen
             )
 
-            i = 2
-            while i < len(fields) - 1:
-                codigo = self.__clean_field(fields[i])
+            componentes = fields[2].split('\\')
+            i = 0
+            while i < len(componentes) - 1:
+                codigo = self.__clean_field(componentes[i])
                 if not codigo:
                     break
 
@@ -86,13 +87,13 @@ class RecordParser:
                     archivo_origen=archivo_origen
                 )
 
-                if i + 1 < len(fields) and fields[i + 1]:
+                if i + 1 < len(componentes) and componentes[i + 1]:
                     componente.factor = self.__parse_decimal(
-                        fields[i + 1])
+                        componentes[i + 1])
 
-                if i + 2 < len(fields) and fields[i + 2]:
+                if i + 2 < len(componentes) and componentes[i + 2]:
                     componente.rendimiento = self.__parse_decimal(
-                        fields[i + 2])
+                        componentes[i + 2])
 
                 descomposion.componentes.append(componente)
                 i += 3
@@ -115,31 +116,36 @@ class RecordParser:
         try:
             fields = record.split(settings.FIELD_SEPARATOR)
 
-            if len(fields) < 4:
+            if len(fields) < 3:
                 return None
 
+            codigos = fields[1].split('\\')
             medicion = Medicion(
-                codigo_padre=self.__clean_field(fields[1]),
-                codigo_hijo=self.__clean_field(fields[2]),
+                codigo_padre=self.__clean_field(codigos[0]),
+                codigo_hijo=self.__clean_field(codigos[1]),
                 archivo_origen=archivo_origen
             )
 
+            if fields[2]:
+                posiciones = fields[2].split("\\")
+                medicion.posicion = []
+
+                for p in posiciones:
+                    try:
+                        medicion.posicion.append(int(p))
+                    except ValueError:
+                        pass
+
             if fields[3]:
-                try:
-                    medicion.posicion = int(fields[3])
-                except ValueError:
-                    pass
+                medicion_total = self.__parse_decimal(fields[3])
+                medicion.medicion_total = medicion_total
 
             if len(fields) > 4 and fields[4]:
                 lineas_texto = fields[4]
-                # Cada \\ simboliza un cambio de línea
-                lineas = lineas_texto.split('\\')
+                mediciones = self.__parse_linea_medicion(
+                    lineas_texto, archivo_origen)
 
-                for linea_texto in lineas:
-                    linea = self.__parse_linea_medicion(
-                        linea_texto, archivo_origen)
-                    if linea:
-                        medicion.lineas_medición.append(linea)
+                medicion.lineas_medición = mediciones
 
             return medicion
 
@@ -210,39 +216,46 @@ class RecordParser:
         self,
         linea_texto: str,
         archivo_origen: str = None
-    ) -> Optional[LineaMedicion]:
+    ) -> List[Optional[LineaMedicion]]:
         """
         Parsea una línea individual de medición
         Formato: tipo|comentario|unidades|longitud|anchura|altura|
         """
         try:
-            partes = linea_texto.split('|')
+            lineas = []
+
+            partes = linea_texto.split('\\')
 
             if not partes:
                 return None
 
-            linea = LineaMedicion(
-                archivo_origen=archivo_origen
-            )
+            i = 0
+            while i + 6 < len(partes):
 
-            if len(partes) > 0 and partes[0]:
+                linea = LineaMedicion(
+                    archivo_origen=archivo_origen
+                )
+
                 try:
-                    linea.tipo_linea = int(partes[0])
+                    linea.tipo_linea = int(partes[i])
                 except ValueError:
                     linea.tipo_linea = 1
 
-            if len(partes) > 1:
-                linea.comentario = self.__clean_field(partes[1])
+                linea.comentario = self.__clean_field(partes[i + 1])
 
-            campos_numericos = ['unidades', 'longitud', 'anchura', 'altura']
-            for i, campo in enumerate(campos_numericos, start=2):
-                if len(partes) > i and partes[i]:
-                    valor = self.__parse_decimal(partes[i])
+                campos_numericos = ['unidades',
+                                    'longitud', 'latitud', 'altura']
+                for j, campo in enumerate(campos_numericos, start=i + 2):
+                    valor = self.__parse_decimal(partes[j])
                     if valor:
                         setattr(linea, campo, valor)
 
-            linea.calcular_parcial()
-            return linea
+                linea.etiqueta = partes[i + 6]
+                linea.calcular_parcial()
+                lineas.append(linea)
+                i += 7
+
+            return lineas
 
         except Exception as e:
             logger.warning(f"Error parseando línea de medición: {e}")

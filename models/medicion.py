@@ -25,7 +25,7 @@ class LineaMedicion(BC3BaseModel):
         None
     )
 
-    anchura: Optional[Decimal] = Field(
+    latitud: Optional[Decimal] = Field(
         None
     )
 
@@ -33,14 +33,12 @@ class LineaMedicion(BC3BaseModel):
         None
     )
 
-    parcial: Optional[Decimal] = Field(
+    etiqueta: Optional[str] = Field(
         None,
-        description="Medición parcial"
     )
 
-    acumulado: Optional[Decimal] = Field(
-        None,
-        description="Medición acumulada"
+    parcial: Optional[Decimal] = Field(
+        None
     )
 
     class Config:
@@ -53,7 +51,7 @@ class LineaMedicion(BC3BaseModel):
             valores = [
                 self.unidades or Decimal(1),
                 self.longitud or Decimal(1),
-                self.anchura or Decimal(1),
+                self.latitud or Decimal(1),
                 self.altura or Decimal(1)
             ]
             self.parcial = Decimal(1)
@@ -74,9 +72,15 @@ class Medicion(BC3BaseModel):
         description="Código del concepto al que se aplica la medición"
     )
 
-    posicion: Optional[int] = Field(
+    posicion: Optional[List[int]] = Field(
         None,
         description="Posición del hijo en la descomposición"
+    )
+
+    medicion_total: Decimal = Field(
+        None,
+        description="Debe coincidir con el rendimiento del registro tipo" +
+        "'~D' correspondiente."
     )
 
     lineas_medición: List[LineaMedicion] = Field(
@@ -85,10 +89,6 @@ class Medicion(BC3BaseModel):
     )
 
     # TODO: ¿Son necesarios?
-    # Propiedades derivadas
-    total_medicion: Optional[Decimal] = Field(
-        None
-    )
 
     numero_lineas: int = Field(
         0
@@ -98,8 +98,8 @@ class Medicion(BC3BaseModel):
         """Calcula las propiedades derivadas"""
         self.numero_lineas = len(self.lineas_medición)
 
-        total = Decimal(0)
-        for linea in self.lineas_medición:
-            if linea.tipo_linea == 1 and linea.parcial:
-                total += linea.parcial
-        self.total_medicion = total
+        # total = Decimal(0)
+        # for linea in self.lineas_medición:
+        #     if linea.tipo_linea == 1 and linea.parcial:
+        #         total += linea.parcial
+        # self.total_medicion = total

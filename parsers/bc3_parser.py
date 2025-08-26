@@ -167,7 +167,8 @@ class BC3Parser:
             elif record_type == "T":
                 self.__process_texto(record)
             elif record_type == "X":
-                self.__process_texto_pliego(record)
+                # self.__process_texto_pliego(record)
+                pass
 
         except Exception as e:
             logger.warning("Error procesando registro tipo"
