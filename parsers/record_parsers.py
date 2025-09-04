@@ -151,7 +151,8 @@ class RecordParser:
             if len(fields) > 3 and fields[3]:
                 medicion.medicion_total = self.__parse_decimal(fields[3])
 
-            # Campo 4: {TIPO\COMENTARIO{#ID_BIM}\UNIDADES\LONGITUD\LATITUD\ALTURA\} - líneas de medición
+            # Campo 4: {TIPO\COMENTARIO{#ID_BIM}\UNIDADES\
+            # LONGITUD\LATITUD\ALTURA\} - líneas de medición
             if len(fields) > 4 and fields[4]:
                 lineas_medicion = self.__parse_lineas_medicion(
                     fields[4], archivo_origen)
@@ -319,8 +320,10 @@ class RecordParser:
                 linea.parcial = parcial
 
         elif linea.tipo_linea == 3:  # Expresión algebraica
-            # Para expresiones, el parcial se evalúa según la expresión en el comentario
-            # Aquí podríamos implementar un evaluador de expresiones si fuera necesario
+            # Para expresiones, el parcial se evalúa
+            # según la expresión en el comentario
+            # Aquí podríamos implementar un evaluador
+            #  de expresiones si fuera necesario
             linea.parcial = linea.unidades or Decimal('0')
 
         # Para tipos 1 (subtotal parcial) y 2 (subtotal acumulado),

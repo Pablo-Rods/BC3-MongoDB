@@ -10,7 +10,8 @@ class LineaMedicion(BC3BaseModel):
 
     tipo_linea: Optional[int] = Field(
         None,
-        description="Tipo de línea: 1=Normal, 2=Subtotal parcial, 3=Subtotal acumulado, 4=Expresión"
+        description=("Tipo de línea: 1=Normal, 2=Subtotal parcial, " +
+                     "3=Subtotal acumulado, 4=Expresión")
     )
 
     comentario: Optional[str] = Field(
@@ -91,7 +92,8 @@ class Medicion(BC3BaseModel):
 
     codigo_padre: Optional[str] = Field(
         None,
-        description="Código del concepto padre (opcional para mediciones no estructuradas)"
+        description=("Código del concepto padre" +
+                     "(opcional para mediciones no estructuradas)")
     )
 
     codigo_hijo: str = Field(
@@ -106,7 +108,8 @@ class Medicion(BC3BaseModel):
 
     medicion_total: Optional[Decimal] = Field(
         None,
-        description="Total de la medición, debe coincidir con el rendimiento en ~D"
+        description=("Total de la medición, debe coincidir con el" +
+                     "rendimiento en ~D")
     )
 
     etiqueta: Optional[str] = Field(
