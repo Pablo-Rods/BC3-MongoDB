@@ -19,7 +19,7 @@ class MongoDBConnection:
         uri: str = None,
         database_name: str = None
     ):
-        self.database_name = database_name or settings.get_database_name
+        self.database_name = database_name or settings.get_database_name()
         self.uri = uri or settings.get_mongo_uri()
         self.client: Optional[MongoClient] = None
         self.database: Optional[Database] = None
@@ -81,7 +81,7 @@ class MongoDBConnection:
         try:
             # Índices para conceptos
             conceptos_col = self.get_collection(settings.CONCEPTOS_COLLECTION)
-            if conceptos_col:
+            if conceptos_col is not None:  # CORREGIDO
                 conceptos_col.create_index("codigo", unique=True, sparse=True)
                 conceptos_col.create_index("tipo")
                 conceptos_col.create_index("archivo_origen")
@@ -89,21 +89,21 @@ class MongoDBConnection:
             # Índices para descomposiciones
             desc_col = self.get_collection(
                 settings.DESCOMPOSICIONES_COLLECTION)
-            if desc_col:
+            if desc_col is not None:  # CORREGIDO
                 desc_col.create_index("codigo_padre")
                 desc_col.create_index(
                     [("codigo_padre", 1), ("archivo_origen", 1)])
 
             # Índices para mediciones
             med_col = self.get_collection(settings.MEDICIONES_COLLECTION)
-            if med_col:
+            if med_col is not None:  # CORREGIDO
                 med_col.create_index("codigo_padre")
                 med_col.create_index("codigo_hijo")
                 med_col.create_index([("codigo_padre", 1), ("codigo_hijo", 1)])
 
             # Índices para textos
             textos_col = self.get_collection(settings.TEXTOS_COLLECTION)
-            if textos_col:
+            if textos_col is not None:  # CORREGIDO
                 textos_col.create_index("codigo")
                 textos_col.create_index([("codigo", 1), ("archivo_origen", 1)])
 

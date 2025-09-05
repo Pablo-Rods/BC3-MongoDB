@@ -39,6 +39,11 @@ class ArbolConstructor:
         """
         logger.info("Construyendo árbol de conceptos...")
 
+        # Reinicializar el árbol para cada construcción
+        self.arbol = ArbolConceptos()
+        self.relaciones_padre_hijo = defaultdict(set)
+        self.mediciones_por_concepto = defaultdict(list)
+
         self._crear_nodos(conceptos)
         self._procesar_descomposiciones(descomposiciones)
         self._detectar_jerarquia_por_codigo(conceptos)
@@ -84,7 +89,7 @@ class ArbolConstructor:
         self,
         conceptos: List[Concepto]
     ):
-        """CXrea un nodo para cada concepto"""
+        """Crea un nodo para cada concepto"""
         for concepto in conceptos:
             nodo = NodoConcepto(
                 concepto=concepto,
@@ -98,22 +103,40 @@ class ArbolConstructor:
         self,
         descomposiciones: List[Descomposicion]
     ):
-        """Establece las relaciones padre-hijo"""
+        """Establece las relaciones padre-hijo desde las descomposiciones"""
         relaciones = 0
 
         for desc in descomposiciones:
             codigo_padre = desc.codigo_padre
 
-            for com in desc.componentes:
-                codigo_hijo = com.codigo_componente
+            # Verificar que el padre existe
+            if codigo_padre not in self.arbol.nodos:
+                logger.warning(
+                    f"Padre {codigo_padre} no encontrado en conceptos")
+                continue
 
-                if (codigo_hijo in self.arbol.nodos and
-                        codigo_padre in self.arbol.nodos):
-                    self.relaciones_padre_hijo[codigo_padre].add(codigo_hijo)
-                    relaciones += 1
+            for componente in desc.componentes:
+                codigo_hijo = componente.codigo_componente
+
+                # Verificar que el hijo existe
+                if codigo_hijo not in self.arbol.nodos:
+                    logger.warning(
+                        f"Hijo {codigo_hijo} no encontrado en conceptos")
+                    continue
+
+                # Establecer relación
+                self.relaciones_padre_hijo[codigo_padre].add(codigo_hijo)
+                relaciones += 1
+
+                logger.debug(f"Relación: {codigo_padre} -> {codigo_hijo}")
 
         logger.info(f"Procesadas {len(descomposiciones)} descomposiciones, "
-                    f"encontradas {relaciones} relaciones")
+                    f"encontradas {relaciones} relaciones válidas")
+
+        # Debug: Mostrar algunas relaciones para verificar
+        if logger.isEnabledFor(logging.DEBUG):
+            for padre, hijos in list(self.relaciones_padre_hijo.items())[:5]:
+                logger.debug(f"  {padre} tiene hijos: {list(hijos)}")
 
     def _detectar_jerarquia_por_codigo(self, conceptos: List[Concepto]):
         """
@@ -129,8 +152,13 @@ class ArbolConstructor:
                 nivel = self._detectar_nivel_por_codigo(concepto.codigo)
                 capitulos_por_nivel[nivel].append(concepto)
 
+        relaciones_jerarquicas = 0
+
         # Establecer relaciones jerárquicas
         for nivel in sorted(capitulos_por_nivel.keys()):
+            if nivel == 0:
+                continue  # Los de nivel 0 son raíces
+
             for concepto in capitulos_por_nivel[nivel]:
                 padre_codigo = self._encontrar_padre_por_codigo(
                     concepto.codigo,
@@ -140,9 +168,16 @@ class ArbolConstructor:
                 if padre_codigo:
                     self.relaciones_padre_hijo[padre_codigo].add(
                         concepto.codigo)
+                    relaciones_jerarquicas += 1
+                    logger.debug(
+                        f"Jerarquía por código: {padre_codigo} ->"
+                        f"{concepto.codigo}"
+                    )
 
-        logger.info("Detectada jerarquía por código en" +
-                    f"{len(capitulos_por_nivel)} niveles")
+        logger.info("Detectada jerarquía por código: " +
+                    f"{relaciones_jerarquicas} relaciones en"
+                    f"{len(capitulos_por_nivel)} niveles"
+                    )
 
     def _detectar_nivel_por_codigo(
         self,
@@ -219,21 +254,72 @@ class ArbolConstructor:
 
     def _construir_estructura_final(self):
         """Construye la estructura final del árbol"""
+        logger.info("Construyendo estructura final del árbol...")
+
+        # Debug: Mostrar cuántas relaciones tenemos
+        total_relaciones = sum(len(hijos) for hijos
+                               in self.relaciones_padre_hijo.values())
+        logger.info(
+            f"Total de relaciones padre-hijo a procesar: {total_relaciones}")
+
         # Establecer todas las relaciones padre-hijo
+        relaciones_establecidas = 0
         for codigo_padre, codigos_hijos in self.relaciones_padre_hijo.items():
+            logger.debug(
+                f"Procesando padre {codigo_padre} con"
+                f"{len(codigos_hijos)} hijos"
+            )
+
             for codigo_hijo in codigos_hijos:
-                self.arbol.establecer_ralacion_padre_hijo(
-                    codigo_padre, codigo_hijo)
+                # Verificar que ambos nodos existen antes de
+                # establecer la relación
+                if (
+                    codigo_padre in self.arbol.nodos and
+                    codigo_hijo in self.arbol.nodos
+                ):
+                    exito = self.arbol.establecer_relacion_padre_hijo(
+                        codigo_padre, codigo_hijo)
+                    if exito:
+                        relaciones_establecidas += 1
+                        logger.debug(
+                            f"  Relación establecida: {codigo_padre}"
+                            f" -> {codigo_hijo}"
+                        )
+                    else:
+                        logger.warning(
+                            f"  Relación rechazada (circular): {codigo_padre}"
+                            f" -> {codigo_hijo}"
+                        )
+                else:
+                    logger.warning(
+                        f"  No se pudo establecer relación {codigo_padre} ->"
+                        f" {codigo_hijo}: nodos no encontrados"
+                    )
+
+        logger.info(
+            f"Relaciones padre-hijo establecidas: {relaciones_establecidas}")
 
         # Identificar y marcar nodos raíz
         self._identificar_raices()
 
         # Calcular propiedades de todos los nodos
-        for nodo in self.arbol.nodos.values():
+        for codigo, nodo in self.arbol.nodos.items():
             nodo.calcular_propiedades()
 
-        logger.info(f"Estructura final: {len(self.arbol.nodos_raiz)}" +
-                    "raíces identificadas")
+        # Debug: Mostrar algunos nodos con hijos para verificar
+        nodos_con_hijos = 0
+        for codigo, nodo in self.arbol.nodos.items():
+            if nodo.tiene_hijos:
+                nodos_con_hijos += 1
+                if nodos_con_hijos <= 5:  # Mostrar solo los primeros 5
+                    logger.debug(
+                        f"Nodo {codigo} tiene {nodo.numero_hijos} hijos:"
+                        f" {nodo.codigos_hijos}"
+                    )
+
+        logger.info(f"Estructura final: {len(self.arbol.nodos_raiz)} "
+                    "raíces identificadas, {nodos_con_hijos} nodos con hijos"
+                    )
 
     def _identificar_raices(self):
         """Identifica los nodos raíz (sin padre)"""
@@ -245,6 +331,9 @@ class ArbolConstructor:
         for hijos in self.relaciones_padre_hijo.values():
             todos_los_hijos.update(hijos)
 
+        logger.debug(
+            f"Total de nodos que son hijos de alguien: {len(todos_los_hijos)}")
+
         # Los nodos que no son hijos de nadie son raíces
         for codigo, nodo in self.arbol.nodos.items():
             if codigo not in todos_los_hijos:
@@ -252,3 +341,14 @@ class ArbolConstructor:
                 nodo.codigo_padre = None
                 nodo.nivel_jerarquico = 0
                 nodo.ruta_completa = []
+
+        logger.info(f"Identificadas {len(self.arbol.nodos_raiz)} raíces")
+
+        # Debug: Mostrar algunas raíces
+        if logger.isEnabledFor(logging.DEBUG) and self.arbol.nodos_raiz:
+            for i, raiz in enumerate(self.arbol.nodos_raiz[:5]):
+                nodo_raiz = self.arbol.nodos[raiz]
+                logger.debug(
+                    f"  Raíz {i+1}: {raiz} - "
+                    f"{(nodo_raiz.concepto.resumen[:50]
+                        if nodo_raiz.concepto.resumen else 'Sin resumen')}")

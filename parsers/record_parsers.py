@@ -31,9 +31,14 @@ class RecordParser:
             if len(fields) < 3:
                 return None
 
+            codigo = self.__clean_field(fields[1]) if len(fields) > 1 else None
+
+            if codigo is not None:
+                codigo = codigo.split("\\")[0]
+                codigo = codigo.split("#")[0]
+
             concepto = Concepto(
-                codigo=(self.__clean_field(fields[1])
-                        if len(fields) > 1 else None),
+                codigo=codigo,
                 unidad=(self.__clean_field(fields[2])
                         if len(fields) > 2 else None),
                 resumen=(self.__clean_field(fields[3])
@@ -71,8 +76,14 @@ class RecordParser:
             if len(fields) < 3:
                 return None
 
+            codigo = self.__clean_field(fields[1]) if len(fields) > 1 else None
+
+            if codigo is not None:
+                codigo = codigo.split("\\")[0]
+                codigo = codigo.split("#")[0]
+
             descomposion = Descomposicion(
-                codigo_padre=self.__clean_field(fields[1]),
+                codigo_padre=codigo,
                 archivo_origen=archivo_origen
             )
 

@@ -156,6 +156,12 @@ class ArbolConceptos(BC3BaseModel):
         description="Importe total de todo el presupuesto"
     )
 
+    # Agregar campo archivo_origen
+    archivo_origen: Optional[str] = Field(
+        None,
+        description="Archivo BC3 de origen"
+    )
+
     def agregar_nodo(
         self,
         nodo: NodoConcepto
@@ -176,16 +182,25 @@ class ArbolConceptos(BC3BaseModel):
 
         self.calcular_estadisticas()
 
-    def establecer_ralacion_padre_hijo(
+    def establecer_relacion_padre_hijo(  # CORREGIDO: nombre del método
         self,
         codigo_padre: str,
         codigo_hijo: str
     ):
-        """Establece una relación padre-hijo entre dos noidos"""
+        """Establece una relación padre-hijo entre dos nodos"""
         if codigo_padre in self.nodos and codigo_hijo in self.nodos:
+            # Evitar relaciones circulares
+            if codigo_hijo == codigo_padre:
+                return False
+
+            # Evitar que un nodo sea padre de su propio ancestro
+            hijo = self.nodos[codigo_hijo]
+            if hijo.codigo_padre and self._es_ancestro(
+                    codigo_hijo, codigo_padre):
+                return False
+
             self.nodos[codigo_padre].agregar_hijo(codigo_hijo)
 
-            hijo = self.nodos[codigo_hijo]
             hijo.codigo_padre = codigo_padre
 
             padre = self.nodos[codigo_padre]
@@ -193,6 +208,20 @@ class ArbolConceptos(BC3BaseModel):
             hijo.ruta_completa = padre.ruta_completa + [codigo_padre]
 
             self._actualizar_indices_nodo(hijo)
+            return True
+        return False
+
+    def _es_ancestro(self, posible_ancestro: str, nodo: str) -> bool:
+        """Verifica si un nodo es ancestro de otro (para evitar ciclos)"""
+        actual = nodo
+        while actual in self.nodos:
+            nodo_actual = self.nodos[actual]
+            if nodo_actual.codigo_padre == posible_ancestro:
+                return True
+            actual = nodo_actual.codigo_padre
+            if not actual:
+                break
+        return False
 
     def agregar_medicion_a_concepto(
         self,
@@ -251,7 +280,7 @@ class ArbolConceptos(BC3BaseModel):
             nodo = self.nodos[nodo.codigo_padre]
             ruta.append(nodo)
 
-        return list.reverse(ruta)
+        return list(reversed(ruta))  # CORREGIDO: era list.reverse(ruta)
 
     def calcular_importes_arbol(self):
         """Calcula importes totales considerando la estructura del árbol"""

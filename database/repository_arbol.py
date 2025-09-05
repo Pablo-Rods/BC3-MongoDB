@@ -71,7 +71,7 @@ class BC3ArbolRepository(BC3Repository):
         """Guarda la estructura completa del árbol"""
         try:
             collection = self.connection.get_collection(self.ARBOL_COLLECTION)
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return {
                     'success': False,
                     'error': 'No se pudo acceder a la colección'
@@ -126,7 +126,7 @@ class BC3ArbolRepository(BC3Repository):
         """Guarda nodos individuales para consultas rápidas"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return {
                     'nodos_guardados': 0,
                     'error': 'No se pudo acceder a la colección'
@@ -201,17 +201,19 @@ class BC3ArbolRepository(BC3Repository):
         try:
             # Índices para estructura del árbol
             arbol_col = self.connection.get_collection(self.ARBOL_COLLECTION)
-            if arbol_col:
+            if arbol_col is not None:  # CORREGIDO
                 arbol_col.create_index("archivo_origen")
                 arbol_col.create_index("tipo")
                 arbol_col.create_index([("archivo_origen", 1), ("tipo", 1)])
 
             # Índices para nodos individuales
             nodos_col = self.connection.get_collection("nodos_arbol")
-            if nodos_col:
-                nodos_col.create_index("codigo", unique=True)
+            if nodos_col is not None:  # CORREGIDO
+                # CORREGIDO: composite unique
+                nodos_col.create_index(
+                    [("codigo", 1), ("archivo_origen", 1)], unique=True)
+                nodos_col.create_index("codigo")
                 nodos_col.create_index("archivo_origen")
-                nodos_col.create_index([("codigo", 1), ("archivo_origen", 1)])
                 nodos_col.create_index("estructura.codigo_padre")
                 nodos_col.create_index("estructura.nivel_jerarquico")
                 nodos_col.create_index("estructura.es_raiz")
@@ -234,7 +236,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene la estructura completa del árbol"""
         try:
             collection = self.connection.get_collection(self.ARBOL_COLLECTION)
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return None
 
             filtro = {'tipo': 'estructura_completa'}
@@ -255,7 +257,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene un nodo específico"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return None
 
             filtro = {'codigo': codigo}
@@ -276,7 +278,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene los hijos directos de un nodo"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return []
 
             filtro = {'estructura.codigo_padre': codigo_padre}
@@ -296,7 +298,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene todos los nodos raíz"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return []
 
             filtro = {'estructura.es_raiz': True}
@@ -317,7 +319,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene todos los nodos de un nivel específico"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return []
 
             filtro = {'estructura.nivel_jerarquico': nivel}
@@ -338,7 +340,7 @@ class BC3ArbolRepository(BC3Repository):
         """Busca nodos por tipo de concepto"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return []
 
             filtro = {'concepto.tipo': tipo_concepto}
@@ -417,7 +419,7 @@ class BC3ArbolRepository(BC3Repository):
         """Obtiene todos los nodos que tienen mediciones asociadas"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return []
 
             filtro = {'estadisticas.numero_mediciones': {'$gt': 0}}
@@ -437,7 +439,7 @@ class BC3ArbolRepository(BC3Repository):
         """Calcula estadísticas del árbol guardado"""
         try:
             collection = self.connection.get_collection("nodos_arbol")
-            if not collection:
+            if collection is None:  # CORREGIDO
                 return {}
 
             filtro = {}
