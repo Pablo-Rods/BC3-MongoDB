@@ -1,26 +1,36 @@
-# BC3 Parser
+# BC3 Parser - Constructor de Árboles Jerárquicos
 
-Un parser robusto para archivos BC3 (Base de Costos de la Construcción) desarrollado en Python, con integración completa a MongoDB para almacenamiento y consulta de datos de presupuestos de construcción.
+Un parser especializado para archivos BC3 (Base de Costos de la Construcción) desarrollado en Python, enfocado en la **construcción y almacenamiento de estructuras jerárquicas** de presupuestos de construcción con integración completa a MongoDB.
 
-## 🏗️ Características
+## 🌳 Características Principales
 
-- **Parser completo BC3**: Soporte para todos los tipos de registro (~C, ~D, ~M, ~T, ~X)
-- **Integración MongoDB**: Almacenamiento estructurado con índices optimizados
-- **Modelos Pydantic**: Validación de datos y serialización robusta
-- **Gestión de encoding**: Detección automática de codificación de archivos
-- **Procesamiento por lotes**: Inserción eficiente de grandes volúmenes de datos
-- **Logging completo**: Seguimiento detallado del proceso de importación
-- **Exportación JSON**: Capacidad de exportar datos parseados
+- **Constructor de Árboles Jerárquicos**: Construcción automática de estructuras de árbol desde descomposiciones BC3
+- **Validación de Integridad**: Detección de referencias circulares, nodos huérfanos e inconsistencias
+- **Almacenamiento Optimizado**: Guardado eficiente de estructuras completas en MongoDB
+- **Parser Completo BC3**: Soporte para todos los tipos de registro (~C, ~D, ~M, ~T, ~X)
+- **Detección Automática de Jerarquía**: Análisis inteligente por códigos y descomposiciones
+- **Exportación JSON**: Capacidad de exportar árboles completos a formato JSON
+- **Cálculo de Importes**: Propagación automática de costos a través del árbol
+- **Gestión de Mediciones**: Asociación y cálculo de mediciones por concepto
 
-## 📋 Tipos de Registro Soportados
+## 🏗️ Arquitectura del Sistema
 
-| Tipo | Descripción                                 | Modelo           |
-| ---- | ------------------------------------------- | ---------------- |
-| ~C   | Conceptos (partidas, capítulos, materiales) | `Concepto`       |
-| ~D   | Descomposiciones (componentes de conceptos) | `Descomposicion` |
-| ~M   | Mediciones (líneas de medición)             | `Medicion`       |
-| ~T   | Textos descriptivos                         | `Texto`          |
-| ~X   | Textos de pliego de condiciones             | `TextoPliego`    |
+### Modelos de Datos
+
+| Modelo           | Descripción                                 | Uso Principal                        |
+| ---------------- | ------------------------------------------- | ------------------------------------ |
+| `Concepto`       | Partidas, capítulos y materiales (~C)       | Nodos básicos del árbol              |
+| `NodoConcepto`   | Nodo enriquecido con relaciones jerárquicas | Elemento del árbol con padre/hijos   |
+| `ArbolConceptos` | Estructura completa del árbol               | Contenedor principal del presupuesto |
+| `Descomposicion` | Relaciones padre-hijo (~D)                  | Definición de estructura             |
+| `Medicion`       | Líneas de medición (~M)                     | Cantidades y cálculos                |
+
+### Componentes Clave
+
+- **ArbolConstructor**: Construye la estructura jerárquica completa
+- **ArbolValidator**: Valida integridad y detecta problemas
+- **BC3ArbolRepository**: Gestión especializada de persistencia
+- **BC3ArbolOnlyReader**: Reader optimizado solo para árboles
 
 ## 🚀 Instalación
 
@@ -47,96 +57,127 @@ BC3_ENCODING=cp1252
 
 ## 💻 Uso
 
-### Uso Básico
+### Uso Básico - Solo Árbol
 
 ```python
-from main import BC3Reader
+from main import BC3ArbolOnlyReader
 
-# Crear instancia del reader
-reader = BC3Reader()
+# Crear instancia del reader especializado
+reader = BC3ArbolOnlyReader()
 
-# Importar archivo BC3
-success = reader.importar_archivo('./data/presupuesto.bc3')
+# Importar archivo BC3 y construir árbol
+success = reader.importar_solo_arbol(
+    './data/presupuesto.bc3',
+    exportar_arbol_json=True,
+    validar_arbol=True,
+    sobrescribir=False
+)
 
 if success:
-    print("Importación completada exitosamente")
+    print("Árbol importado exitosamente")
 ```
 
-### Uso Avanzado
+### Construcción Manual del Árbol
+
+```python
+from parsers.bc3_parser import BC3Parser
+from parsers.arbol_constructor import ArbolConstructor
+from utils.arbol_validator import ArbolValidator
+
+# Parsear archivo BC3
+parser = BC3Parser()
+datos = parser.parse_file('./data/presupuesto.bc3')
+
+# Construir árbol
+constructor = ArbolConstructor()
+arbol = constructor.construir_arbol(
+    datos['conceptos'],
+    datos['descomposiciones'],
+    datos['mediciones']
+)
+
+# Validar integridad
+resultado = ArbolValidator.validar_arbol(arbol)
+print(f"Árbol válido: {resultado['valido']}")
+```
+
+### Consultas del Árbol
 
 ```python
 from database.connection import MongoDBConnection
-from database.repository import BC3Repository
-from parsers.bc3_parser import BC3Parser
+from database.repository_arbol import BC3ArbolRepository
 
-# Parser personalizado
-parser = BC3Parser(encoding='latin-1')
-datos = parser.parse_file('./data/presupuesto.bc3')
-
-# Conexión a base de datos
 with MongoDBConnection() as conn:
-    repo = BC3Repository(conn)
-    resultado = repo.save_all(datos)
+    repo = BC3ArbolRepository(conn)
 
-    print(f"Conceptos insertados: {resultado['conceptos_insertados']}")
+    # Obtener estructura completa
+    estructura = repo.obtener_arbol_completo("presupuesto.bc3")
+
+    # Obtener nodos raíz
+    raices = repo.obtener_nodos_raiz("presupuesto.bc3")
+
+    # Obtener hijos directos
+    hijos = repo.obtener_hijos_directos("CAP01", "presupuesto.bc3")
+
+    # Obtener ruta hasta raíz
+    ruta = repo.obtener_ruta_hasta_raiz("PART_001", "presupuesto.bc3")
 ```
 
-## 📊 Estructura de Datos
+## 📊 Estructura del Árbol
 
-### Concepto
+### NodoConcepto
 
-Representa partidas, capítulos y materiales del presupuesto:
+Cada nodo del árbol contiene:
 
 ```python
 {
-    "codigo": "OUM1234",
-    "unidad": "m2",
-    "resumen": "Excavación en terreno de cualquier naturaleza",
-    "precio": 15.50,
-    "tipo": "2",
-    "es_partida": True,
-    "nivel": 1
+    "concepto": {                    # Datos del concepto (~C)
+        "codigo": "CAP01",
+        "resumen": "Movimiento de tierras",
+        "precio": 1500.00,
+        "tipo": "0"
+    },
+    "estructura": {                  # Relaciones jerárquicas
+        "codigo_padre": None,        # null para raíces
+        "codigos_hijos": ["SUBCAP01", "SUBCAP02"],
+        "nivel_jerarquico": 0,
+        "ruta_completa": [],
+        "es_raiz": True,
+        "es_hoja": False
+    },
+    "mediciones": [...],             # Mediciones asociadas
+    "estadisticas": {               # Datos calculados
+        "numero_hijos": 2,
+        "numero_mediciones": 0,
+        "importe_propio": 1500.00,
+        "importe_total_arbol": 25000.00
+    }
 }
 ```
 
-### Descomposición
+### ArbolConceptos
 
-Define los componentes que forman un concepto:
-
-```python
-{
-    "codigo_padre": "OUM1234",
-    "componentes": [
-        {
-            "codigo_componente": "MO001",
-            "factor": 0.5,
-            "rendimiento": 1.0
-        }
-    ],
-    "numero_componetes": 3,
-    "importe_total": 45.75
-}
-```
-
-### Medición
-
-Contiene las líneas de medición para cada concepto:
+La estructura completa incluye:
 
 ```python
 {
-    "codigo_padre": "OUM1234",
-    "codigo_hijo": "MO001",
-    "lineas_medición": [
+    "metadata": {
+        "total_nodos": 150,
+        "niveles_maximos": 4,
+        "importe_total_presupuesto": 150000.00
+    },
+    "arbol": [                      # Estructura anidada desde raíces
         {
-            "tipo_linea": 1,
-            "comentario": "Zona A",
-            "unidades": 2,
-            "longitud": 10.0,
-            "anchura": 5.0,
-            "parcial": 100.0
+            "codigo": "CAP01",
+            "resumen": "Movimiento de tierras",
+            "hijos": [
+                {
+                    "codigo": "SUBCAP01",
+                    "hijos": [...]
+                }
+            ]
         }
-    ],
-    "total_medicion": 100.0
+    ]
 }
 ```
 
@@ -144,84 +185,100 @@ Contiene las líneas de medición para cada concepto:
 
 ### Colecciones MongoDB
 
-- **conceptos**: Partidas, capítulos y materiales
-- **descomposiciones**: Componentes de cada concepto
-- **mediciones**: Líneas de medición
-- **textos**: Descripciones detalladas
-- **metadata**: Información del archivo BC3
+#### Estructura del Árbol
 
-### Índices Creados Automáticamente
+- **arbol_conceptos**: Estructuras completas de árboles
+- **nodos_arbol**: Nodos individuales para consultas rápidas
+
+#### Datos Planos (Opcionales)
+
+- **conceptos**: Partidas, capítulos y materiales originales
+- **descomposiciones**: Relaciones padre-hijo originales
+- **mediciones**: Líneas de medición originales
+- **metadata**: Información de archivos BC3
+
+### Índices Optimizados
 
 ```javascript
-// Conceptos
-{ "codigo": 1 }
-{ "tipo": 1 }
-{ "archivo_origen": 1 }
+// Índices para estructura del árbol
+{ "archivo_origen": 1, "tipo": 1 }
 
-// Descomposiciones
-{ "codigo_padre": 1 }
-{ "codigo_padre": 1, "archivo_origen": 1 }
-
-// Mediciones
-{ "codigo_padre": 1 }
-{ "codigo_hijo": 1 }
-{ "codigo_padre": 1, "codigo_hijo": 1 }
+// Índices para nodos individuales
+{ "codigo": 1, "archivo_origen": 1 }  // único
+{ "estructura.codigo_padre": 1 }
+{ "estructura.nivel_jerarquico": 1 }
+{ "estructura.es_raiz": 1 }
+{ "concepto.tipo": 1 }
 ```
 
-## 🔧 Configuración
+## 🔧 Configuración Avanzada
 
-La configuración se gestiona a través del archivo `config/settings.py`:
+### Constructor de Árboles
 
 ```python
 class Settings:
-    # Database
-    MONGO_URI: str
-    MONGO_DATABASE: str
+    # Detección automática de jerarquía
+    DETECTAR_JERARQUIA_AUTOMATICA: bool = True
+    VALIDAR_ARBOL_AUTOMATICO: bool = True
+    CALCULAR_IMPORTES_ARBOL: bool = True
 
-    # BC3 Processing
-    DEFAULT_ENCODING: str = "cp1252"
-    FIELD_SEPARATOR: str = "|"
-    RECORD_SEPARATOR: str = "~"
+    # Límites del árbol
+    MAX_NIVELES_ARBOL: int = 10
 
-    # Collections
-    CONCEPTOS_COLLECTION: str = "conceptos"
-    DESCOMPOSICIONES_COLLECTION: str = "descomposiciones"
-    # ...
+    # Tipos de concepto para jerarquía
+    TIPOS_CAPITULO: list = ['0', '1']  # Capítulos
+    TIPOS_PARTIDA: list = ['2', '3']   # Partidas
+    TIPOS_MATERIAL: list = ['4', '5']  # Materiales
+```
 
-    # Batch Processing
-    BATCH_SIZE: int = 100
-    MAX_RETIES: int = 3
+### Validación del Árbol
+
+```python
+# Validación automática
+resultado = ArbolValidator.validar_arbol(arbol)
+
+print(f"Válido: {resultado['valido']}")
+print(f"Errores: {len(resultado['errores'])}")
+print(f"Advertencias: {len(resultado['advertencias'])}")
+
+# Tipos de validación:
+# - Referencias circulares
+# - Nodos huérfanos
+# - Inconsistencias de nivel
+# - Integridad referencial
 ```
 
 ## 🧪 Ejemplos de Consulta
 
-### Buscar un Concepto
+### Obtener Estructura Jerárquica
 
 ```python
-from database.connection import MongoDBConnection
-from database.repository import BC3Repository
+# Obtener árbol completo con jerarquía
+estructura = repo.obtener_estructura_completa("presupuesto.bc3")
 
-with MongoDBConnection() as conn:
-    repo = BC3Repository(conn)
+# Navegar por niveles
+nodos_nivel_0 = repo.obtener_nodos_por_nivel(0, "presupuesto.bc3")
+nodos_nivel_1 = repo.obtener_nodos_por_nivel(1, "presupuesto.bc3")
 
-    # Buscar por código
-    concepto = repo.buscar_concepto("OUM1234")
-
-    # Buscar descomposición
-    descomp = repo.buscar_descomposicion("OUM1234")
+# Buscar por tipo
+capitulos = repo.buscar_nodos_por_tipo("0", "presupuesto.bc3")
+partidas = repo.buscar_nodos_por_tipo("2", "presupuesto.bc3")
 ```
 
-### Consultas MongoDB Directas
+### Consultas Avanzadas
 
-```javascript
-// Encontrar todos los capítulos
-db.conceptos.find({ tipo: { $in: ["0", "1"] } });
+```python
+# Obtener todos los descendientes de un capítulo
+descendientes = repo.obtener_todos_descendientes("CAP01", "presupuesto.bc3")
 
-// Conceptos sin precio
-db.conceptos.find({ precio: null });
+# Obtener ruta completa hasta raíz
+ruta = repo.obtener_ruta_hasta_raiz("PART_001", "presupuesto.bc3")
 
-// Mediciones de un concepto específico
-db.mediciones.find({ codigo_padre: "OUM1234" });
+# Nodos con mediciones
+con_mediciones = repo.obtener_nodos_con_mediciones("presupuesto.bc3")
+
+# Estadísticas del árbol
+stats = repo.calcular_estadisticas_arbol("presupuesto.bc3")
 ```
 
 ## 📁 Estructura del Proyecto
@@ -229,41 +286,34 @@ db.mediciones.find({ codigo_padre: "OUM1234" });
 ```
 bc3-parser/
 ├── config/
-│   ├── __init__.py
-│   └── settings.py          # Configuración de la aplicación
+│   └── settings.py              # Configuración completa
 ├── database/
-│   ├── __init__.py
-│   ├── connection.py        # Gestión de conexión MongoDB
-│   └── repository.py        # Operaciones de base de datos
+│   ├── connection.py            # Gestión MongoDB
+│   ├── repository.py            # Operaciones básicas
+│   └── repository_arbol.py      # Operaciones de árbol
 ├── models/
-│   ├── __init__.py
-│   ├── base_model.py        # Modelo base Pydantic
-│   ├── concepto.py          # Modelo para conceptos
-│   ├── descomposicion.py    # Modelo para descomposiciones
-│   ├── medicion.py          # Modelo para mediciones
-│   └── texto.py             # Modelo para textos
+│   ├── base_model.py            # Modelo base Pydantic
+│   ├── concepto.py              # Modelo concepto
+│   ├── arbol_conceptos.py       # Modelos de árbol
+│   ├── descomposicion.py        # Modelo descomposición
+│   ├── medicion.py              # Modelo medición
+│   └── texto.py                 # Modelo texto
 ├── parsers/
-│   ├── __init__.py
-│   ├── bc3_parser.py        # Parser principal BC3
-│   └── record_parsers.py    # Parsers por tipo de registro
+│   ├── bc3_parser.py            # Parser principal BC3
+│   ├── record_parsers.py        # Parsers por registro
+│   └── arbol_constructor.py     # Constructor de árboles
 ├── utils/
-│   ├── __init__.py
-│   ├── helpers.py           # Funciones auxiliares
-│   └── validators.py        # Validadores de datos
-├── data/                    # Archivos BC3 de ejemplo (git ignored)
-├── main.py                  # Punto de entrada principal
-├── requirements.txt
-├── .gitignore
+│   ├── helpers.py               # Funciones auxiliares
+│   ├── validators.py            # Validadores de datos
+│   └── arbol_validator.py       # Validador de árboles
+├── main.py                      # Reader especializado en árboles
 └── README.md
 ```
 
-## 🚦 Logging
-
-El sistema incluye logging completo con diferentes niveles:
+## 🚦 Logging y Monitoreo
 
 ```python
-import logging
-
+# Configuración de logging detallado
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -272,22 +322,71 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# Logs específicos del proceso:
+# - Parseo de archivo BC3
+# - Construcción del árbol
+# - Detección de jerarquía
+# - Validación de integridad
+# - Guardado en MongoDB
 ```
 
-## ⚠️ Consideraciones
+## ⚠️ Consideraciones Importantes
 
-### Encoding de Archivos
+### Construcción del Árbol
 
-Los archivos BC3 suelen usar codificación `cp1252` o `latin-1`. El parser incluye detección automática de encoding.
+- **Detección Automática**: El sistema detecta jerarquías por descomposiciones y códigos
+- **Validación Estricta**: Se validan referencias circulares y consistencia
+- **Cálculo de Importes**: Los importes se propagan automáticamente en el árbol
+- **Optimización**: Almacenamiento eficiente para consultas rápidas
 
 ### Rendimiento
 
-- Procesamiento por lotes para grandes archivos
-- Índices optimizados para consultas frecuentes
-- Gestión de memoria eficiente
+- **Construcción por Lotes**: Procesamiento eficiente de archivos grandes
+- **Índices Especializados**: Optimización para consultas jerárquicas
+- **Almacenamiento Dual**: Estructura completa + nodos individuales
+- **Validación Opcional**: Puede desactivarse para mejorar rendimiento
 
-### Validación
+### Limitaciones
 
-- Validación de datos con Pydantic
-- Verificación de integridad referencial
-- Manejo robusto de errores
+- **Archivos Muy Grandes**: > 100MB pueden requerir ajustes de memoria
+- **Jerarquías Complejas**: Máximo 10 niveles por defecto
+- **Referencias Circulares**: Se detectan y rechazan automáticamente
+
+## 🔄 Flujo de Procesamiento
+
+1. **Parseo BC3** → Extracción de registros (~C, ~D, ~M)
+2. **Creación de Nodos** → Conversión de conceptos a nodos
+3. **Detección de Jerarquía** → Análisis de descomposiciones y códigos
+4. **Construcción del Árbol** → Establecimiento de relaciones padre-hijo
+5. **Validación** → Verificación de integridad y consistencia
+6. **Cálculo de Importes** → Propagación de costos en el árbol
+7. **Persistencia** → Guardado optimizado en MongoDB
+8. **Indexación** → Creación de índices para consultas rápidas
+
+## 📈 Estadísticas y Métricas
+
+El sistema proporciona estadísticas detalladas:
+
+```python
+{
+    "parseo": {
+        "conceptos_parseados": 150,
+        "descomposiciones_parseadas": 45,
+        "mediciones_parseadas": 200
+    },
+    "construccion": {
+        "total_nodos": 150,
+        "nodos_raiz": 3,
+        "niveles_maximos": 4,
+        "relaciones_establecidas": 147,
+        "nodos_con_mediciones": 80
+    },
+    "validacion": {
+        "valido": True,
+        "referencias_circulares": 0,
+        "huerfanos": 2,
+        "inconsistencias_nivel": 0
+    }
+}
+```
