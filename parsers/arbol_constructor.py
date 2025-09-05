@@ -4,7 +4,7 @@ from models.medicion import Medicion
 from models.concepto import Concepto
 
 from typing import Dict, Set, List
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import logging
 
@@ -262,7 +262,10 @@ class ArbolConstructor:
         logger.info(
             f"Total de relaciones padre-hijo a procesar: {total_relaciones}")
 
-        # Establecer todas las relaciones padre-hijo
+        # 1. Identificar nodos raíz ANTES de establecer relaciones
+        self._identificar_raices_preliminar()
+
+        # 2. Establecer relaciones básicas padre-hijo (sin niveles aún)
         relaciones_establecidas = 0
         for codigo_padre, codigos_hijos in self.relaciones_padre_hijo.items():
             logger.debug(
@@ -277,7 +280,8 @@ class ArbolConstructor:
                     codigo_padre in self.arbol.nodos and
                     codigo_hijo in self.arbol.nodos
                 ):
-                    exito = self.arbol.establecer_relacion_padre_hijo(
+                    # Establecer relación básica SIN calcular niveles aún
+                    exito = self._establecer_relacion_basica(
                         codigo_padre, codigo_hijo)
                     if exito:
                         relaciones_establecidas += 1
@@ -299,10 +303,13 @@ class ArbolConstructor:
         logger.info(
             f"Relaciones padre-hijo establecidas: {relaciones_establecidas}")
 
-        # Identificar y marcar nodos raíz
-        self._identificar_raices()
+        # 3. Calcular niveles jerárquicos sistemáticamente
+        self._calcular_niveles_jerarquicos()
 
-        # Calcular propiedades de todos los nodos
+        # 4. Actualizar índices por nivel
+        self._actualizar_indices_por_nivel()
+
+        # 5. Calcular propiedades de todos los nodos
         for codigo, nodo in self.arbol.nodos.items():
             nodo.calcular_propiedades()
 
@@ -313,16 +320,17 @@ class ArbolConstructor:
                 nodos_con_hijos += 1
                 if nodos_con_hijos <= 5:  # Mostrar solo los primeros 5
                     logger.debug(
-                        f"Nodo {codigo} tiene {nodo.numero_hijos} hijos:"
-                        f" {nodo.codigos_hijos}"
+                        f"Nodo {codigo} (nivel {nodo.nivel_jerarquico}) "
+                        f"tiene {nodo.numero_hijos} hijos: "
+                        f"{nodo.codigos_hijos}"
                     )
 
         logger.info(f"Estructura final: {len(self.arbol.nodos_raiz)} "
-                    "raíces identificadas, {nodos_con_hijos} nodos con hijos"
+                    f"raíces identificadas, {nodos_con_hijos} nodos con hijos"
                     )
 
-    def _identificar_raices(self):
-        """Identifica los nodos raíz (sin padre)"""
+    def _identificar_raices_preliminar(self):
+        """Identifica los nodos raíz antes de establecer relaciones"""
         # Limpiar lista de raíces existente
         self.arbol.nodos_raiz.clear()
 
@@ -338,6 +346,7 @@ class ArbolConstructor:
         for codigo, nodo in self.arbol.nodos.items():
             if codigo not in todos_los_hijos:
                 self.arbol.nodos_raiz.append(codigo)
+                # Establecer propiedades básicas de raíz
                 nodo.codigo_padre = None
                 nodo.nivel_jerarquico = 0
                 nodo.ruta_completa = []
@@ -352,3 +361,137 @@ class ArbolConstructor:
                     f"  Raíz {i+1}: {raiz} - "
                     f"{(nodo_raiz.concepto.resumen[:50]
                         if nodo_raiz.concepto.resumen else 'Sin resumen')}")
+
+    def _establecer_relacion_basica(
+        self,
+        codigo_padre: str,
+        codigo_hijo: str
+    ) -> bool:
+        """Establece una relación padre-hijo básica sin calcular niveles"""
+        if (
+            codigo_padre in self.arbol.nodos
+            and codigo_hijo in self.arbol.nodos
+        ):
+            # Evitar relaciones circulares
+            if codigo_hijo == codigo_padre:
+                return False
+
+            # Evitar que un nodo sea padre de su propio ancestro
+            hijo = self.arbol.nodos[codigo_hijo]
+            if hijo.codigo_padre and self._es_ancestro(
+                    codigo_hijo, codigo_padre):
+                return False
+
+            # Establecer relación básica
+            self.arbol.nodos[codigo_padre].agregar_hijo(codigo_hijo)
+            hijo.codigo_padre = codigo_padre
+
+            # NO calcular niveles aquí - se hace después sistemáticamente
+            return True
+        return False
+
+    def _calcular_niveles_jerarquicos(self):
+        """Calcula los niveles jerárquicos de forma sistemática usando BFS"""
+        logger.info("Calculando niveles jerárquicos...")
+
+        # Usar BFS (Breadth-First Search) para calcular niveles
+        # Esto garantiza que los niveles se calculen en orden correcto
+
+        queue = deque()
+        visitados = set()
+
+        # Inicializar con las raíces (nivel 0)
+        for codigo_raiz in self.arbol.nodos_raiz:
+            if codigo_raiz in self.arbol.nodos:
+                nodo_raiz = self.arbol.nodos[codigo_raiz]
+                nodo_raiz.nivel_jerarquico = 0
+                nodo_raiz.ruta_completa = []
+                queue.append((codigo_raiz, 0))
+                visitados.add(codigo_raiz)
+                logger.debug(f"Raíz inicializada: {codigo_raiz} nivel 0")
+
+        # BFS para propagar niveles
+        while queue:
+            codigo_actual, nivel_actual = queue.popleft()
+            nodo_actual = self.arbol.nodos[codigo_actual]
+
+            # Procesar todos los hijos del nodo actual
+            for codigo_hijo in nodo_actual.codigos_hijos:
+                if (
+                    codigo_hijo in self.arbol.nodos and
+                    codigo_hijo not in visitados
+                ):
+                    nodo_hijo = self.arbol.nodos[codigo_hijo]
+
+                    # Calcular nivel y ruta del hijo
+                    nivel_hijo = nivel_actual + 1
+                    ruta_hijo = nodo_actual.ruta_completa + [codigo_actual]
+
+                    # Asignar propiedades
+                    nodo_hijo.nivel_jerarquico = nivel_hijo
+                    nodo_hijo.ruta_completa = ruta_hijo
+
+                    # Agregar a la cola para procesar sus hijos
+                    queue.append((codigo_hijo, nivel_hijo))
+                    visitados.add(codigo_hijo)
+
+                    logger.debug(
+                        f"Nivel calculado: {codigo_hijo} nivel {nivel_hijo} "
+                        f"(padre: {codigo_actual})"
+                    )
+
+        logger.info(f"Niveles calculados para {len(visitados)} nodos")
+
+        # Verificar si hay nodos sin procesar (huérfanos o ciclos)
+        nodos_sin_procesar = set(self.arbol.nodos.keys()) - visitados
+        if nodos_sin_procesar:
+            logger.warning(
+                f"Nodos no procesados (posibles huérfanos): "
+                f"{list(nodos_sin_procesar)[:10]}")
+
+            # Asignar nivel 0 a nodos huérfanos
+            for codigo in nodos_sin_procesar:
+                nodo = self.arbol.nodos[codigo]
+                nodo.nivel_jerarquico = 0
+                nodo.ruta_completa = []
+                # Añadir como raíz si no tiene padre
+                if nodo.codigo_padre is None:
+                    self.arbol.nodos_raiz.append(codigo)
+
+    def _actualizar_indices_por_nivel(self):
+        """Actualiza los índices de nodos por nivel"""
+        logger.info("Actualizando índices por nivel...")
+
+        # Limpiar índices existentes
+        self.arbol.nodos_por_nivel.clear()
+
+        # Reconstruir índices basados en niveles calculados
+        for codigo, nodo in self.arbol.nodos.items():
+            nivel = nodo.nivel_jerarquico
+
+            if nivel not in self.arbol.nodos_por_nivel:
+                self.arbol.nodos_por_nivel[nivel] = []
+
+            if codigo not in self.arbol.nodos_por_nivel[nivel]:
+                self.arbol.nodos_por_nivel[nivel].append(codigo)
+
+        # Calcular estadísticas finales
+        self.arbol.calcular_estadisticas()
+
+        # Debug: Mostrar distribución por niveles
+        if logger.isEnabledFor(logging.DEBUG):
+            for nivel in sorted(self.arbol.nodos_por_nivel.keys()):
+                cantidad = len(self.arbol.nodos_por_nivel[nivel])
+                logger.debug(f"  Nivel {nivel}: {cantidad} nodos")
+
+    def _es_ancestro(self, posible_ancestro: str, nodo: str) -> bool:
+        """Verifica si un nodo es ancestro de otro (para evitar ciclos)"""
+        actual = nodo
+        while actual in self.arbol.nodos:
+            nodo_actual = self.arbol.nodos[actual]
+            if nodo_actual.codigo_padre == posible_ancestro:
+                return True
+            actual = nodo_actual.codigo_padre
+            if not actual:
+                break
+        return False
