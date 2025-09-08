@@ -495,218 +495,221 @@ class BC3ArbolRepository(BC3Repository):
             logger.error(f"Error calculando estadísticas del árbol: {e}")
             return {}
 
-def save_solo_estructura_arbol(
-    self,
-    arbol: ArbolConceptos
-) -> Dict[str, Any]:
-    """
-    Guarda ÚNICAMENTE la estructura completa del árbol en MongoDB
-    No guarda nodos individuales
+    def save_solo_estructura_arbol(
+        self,
+        arbol: ArbolConceptos
+    ) -> Dict[str, Any]:
+        """
+        Guarda ÚNICAMENTE la estructura completa del árbol en MongoDB
+        No guarda nodos individuales
 
-    Args:
-        arbol: Árbol de conceptos construido
+        Args:
+            arbol: Árbol de conceptos construido
 
-    Returns:
-        Estadísticas de la operación
-    """
-    if not self.connection._is_connected():
-        logger.error("No hay conexión a la base de datos")
-        return {'error': 'No hay conexión'}
+        Returns:
+            Estadísticas de la operación
+        """
+        if not self.connection._is_connected():
+            logger.error("No hay conexión a la base de datos")
+            return {'error': 'No hay conexión'}
 
-    try:
-        logger.info("Guardando únicamente estructura completa del árbol...")
-        
-        # Guardar SOLO la estructura del árbol
-        resultado_arbol = self._save_estructura_arbol(arbol)
+        try:
+            logger.info(
+                "Guardando únicamente estructura completa del árbol...")
 
-        if not resultado_arbol['success']:
-            return {'error': 'Error guardando estructura del árbol'}
+            # Guardar SOLO la estructura del árbol
+            resultado_arbol = self._save_estructura_arbol(arbol)
 
-        stats = {
-            'arbol_guardado': resultado_arbol['success'],
-            'total_nodos': len(arbol.nodos),
-            'nodos_raiz': len(arbol.nodos_raiz),
-            'niveles_maximos': arbol.niveles_maximos,
-            'importe_total': (float(arbol.importe_total_presupuesto)
-                              if arbol.importe_total_presupuesto else None),
-            'tipo_importacion': 'solo_estructura'
-        }
+            if not resultado_arbol['success']:
+                return {'error': 'Error guardando estructura del árbol'}
 
-        logger.info(f"Estructura guardada exitosamente: {stats}")
-        return stats
-
-    except Exception as e:
-        logger.error(f"Error guardando estructura: {e}")
-        return {'error': str(e)}
-
-def verificar_estructura_existente(
-    self,
-    archivo_origen: str
-) -> Dict[str, Any]:
-    """
-    Verifica si ya existe una estructura para este archivo
-
-    Args:
-        archivo_origen: Nombre del archivo BC3
-
-    Returns:
-        Información sobre la estructura existente o None
-    """
-    try:
-        collection = self.connection.get_collection("arbol_conceptos")
-        if collection is None:
-            return {'existe': False}
-
-        estructura_existente = collection.find_one({
-            'archivo_origen': archivo_origen,
-            'tipo': 'estructura_completa'
-        })
-
-        if estructura_existente:
-            return {
-                'existe': True,
-                'fecha_creacion': estructura_existente.get('fecha_creacion'),
-                'total_nodos': estructura_existente.get('metadata', {}).get('total_nodos'),
-                'niveles_maximos': estructura_existente.get('metadata', {}).get('niveles_maximos'),
-                'nodos_raiz': estructura_existente.get('metadata', {}).get('nodos_raiz')
+            stats = {
+                'arbol_guardado': resultado_arbol['success'],
+                'total_nodos': len(arbol.nodos),
+                'nodos_raiz': len(arbol.nodos_raiz),
+                'niveles_maximos': arbol.niveles_maximos,
+                'importe_total': (float(arbol.importe_total_presupuesto)
+                                  if arbol.importe_total_presupuesto else None),
+                'tipo_importacion': 'solo_estructura'
             }
-        
-        return {'existe': False}
 
-    except Exception as e:
-        logger.error(f"Error verificando estructura existente: {e}")
-        return {'existe': False, 'error': str(e)}
-
-def eliminar_estructura_arbol(
-    self,
-    archivo_origen: str
-) -> bool:
-    """
-    Elimina únicamente la estructura del árbol de la base de datos
-
-    Args:
-        archivo_origen: Nombre del archivo BC3
-
-    Returns:
-        True si se eliminó correctamente
-    """
-    try:
-        logger.info(f"Eliminando estructura del árbol para: {archivo_origen}")
-
-        # Eliminar SOLO estructura del árbol
-        arbol_col = self.connection.get_collection("arbol_conceptos")
-        if arbol_col is not None:
-            result = arbol_col.delete_many({'archivo_origen': archivo_origen})
-            logger.info(f"Estructuras eliminadas: {result.deleted_count}")
-
-        logger.info(f"Estructura eliminada para: {archivo_origen}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error eliminando estructura: {e}")
-        return False
-
-def obtener_estructura_completa(
-    self,
-    archivo_origen: str
-) -> Dict[str, Any]:
-    """
-    Obtiene la estructura completa del árbol desde MongoDB
-
-    Args:
-        archivo_origen: Nombre del archivo BC3
-
-    Returns:
-        Estructura completa del árbol o dict vacío
-    """
-    try:
-        collection = self.connection.get_collection("arbol_conceptos")
-        if collection is None:
-            return {}
-
-        estructura = collection.find_one({
-            'archivo_origen': archivo_origen,
-            'tipo': 'estructura_completa'
-        })
-
-        if estructura:
-            return estructura
-        
-        return {}
-
-    except Exception as e:
-        logger.error(f"Error obteniendo estructura completa: {e}")
-        return {}
-
-def listar_todas_estructuras(self) -> List[Dict[str, Any]]:
-    """
-    Lista todas las estructuras de árbol disponibles
-
-    Returns:
-        Lista de estructuras disponibles
-    """
-    try:
-        collection = self.connection.get_collection("arbol_conceptos")
-        if collection is None:
-            return []
-
-        estructuras = list(collection.find(
-            {'tipo': 'estructura_completa'},
-            {
-                'archivo_origen': 1,
-                'fecha_creacion': 1,
-                'metadata': 1
-            }
-        ).sort('fecha_creacion', -1))
-
-        return estructuras
-
-    except Exception as e:
-        logger.error(f"Error listando estructuras: {e}")
-        return []
-
-def obtener_estadisticas_estructura(
-    self,
-    archivo_origen: str = None
-) -> Dict[str, Any]:
-    """
-    Obtiene estadísticas de las estructuras guardadas
-
-    Args:
-        archivo_origen: Archivo específico o None para todas
-
-    Returns:
-        Estadísticas de las estructuras
-    """
-    try:
-        collection = self.connection.get_collection("arbol_conceptos")
-        if collection is None:
-            return {}
-
-        filtro = {'tipo': 'estructura_completa'}
-        if archivo_origen:
-            filtro['archivo_origen'] = archivo_origen
-
-        pipeline = [
-            {'$match': filtro},
-            {'$group': {
-                '_id': None,
-                'total_estructuras': {'$sum': 1},
-                'total_nodos': {'$sum': '$metadata.total_nodos'},
-                'importe_total_global': {'$sum': '$metadata.importe_total_presupuesto'},
-                'archivos': {'$push': '$archivo_origen'}
-            }}
-        ]
-
-        resultado = list(collection.aggregate(pipeline))
-
-        if resultado:
-            stats = resultado[0]
-            del stats['_id']
+            logger.info(f"Estructura guardada exitosamente: {stats}")
             return stats
 
-        return {}
+        except Exception as e:
+            logger.error(f"Error guardando estructura: {e}")
+            return {'error': str(e)}
 
-    except Exception as e:
-        logger.error(f"Error calculando estadísticas de estructura: {e}")
-        return {}
+    def verificar_estructura_existente(
+        self,
+        archivo_origen: str
+    ) -> Dict[str, Any]:
+        """
+        Verifica si ya existe una estructura para este archivo
+
+        Args:
+            archivo_origen: Nombre del archivo BC3
+
+        Returns:
+            Información sobre la estructura existente o None
+        """
+        try:
+            collection = self.connection.get_collection("arbol_conceptos")
+            if collection is None:
+                return {'existe': False}
+
+            estructura_existente = collection.find_one({
+                'archivo_origen': archivo_origen,
+                'tipo': 'estructura_completa'
+            })
+
+            if estructura_existente:
+                return {
+                    'existe': True,
+                    'fecha_creacion': estructura_existente.get('fecha_creacion'),
+                    'total_nodos': estructura_existente.get('metadata', {}).get('total_nodos'),
+                    'niveles_maximos': estructura_existente.get('metadata', {}).get('niveles_maximos'),
+                    'nodos_raiz': estructura_existente.get('metadata', {}).get('nodos_raiz')
+                }
+
+            return {'existe': False}
+
+        except Exception as e:
+            logger.error(f"Error verificando estructura existente: {e}")
+            return {'existe': False, 'error': str(e)}
+
+    def eliminar_estructura_arbol(
+        self,
+        archivo_origen: str
+    ) -> bool:
+        """
+        Elimina únicamente la estructura del árbol de la base de datos
+
+        Args:
+            archivo_origen: Nombre del archivo BC3
+
+        Returns:
+            True si se eliminó correctamente
+        """
+        try:
+            logger.info(
+                f"Eliminando estructura del árbol para: {archivo_origen}")
+
+            # Eliminar SOLO estructura del árbol
+            arbol_col = self.connection.get_collection("arbol_conceptos")
+            if arbol_col is not None:
+                result = arbol_col.delete_many(
+                    {'archivo_origen': archivo_origen})
+                logger.info(f"Estructuras eliminadas: {result.deleted_count}")
+
+            logger.info(f"Estructura eliminada para: {archivo_origen}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error eliminando estructura: {e}")
+            return False
+
+    def obtener_estructura_completa(
+        self,
+        archivo_origen: str
+    ) -> Dict[str, Any]:
+        """
+        Obtiene la estructura completa del árbol desde MongoDB
+
+        Args:
+            archivo_origen: Nombre del archivo BC3
+
+        Returns:
+            Estructura completa del árbol o dict vacío
+        """
+        try:
+            collection = self.connection.get_collection("arbol_conceptos")
+            if collection is None:
+                return {}
+
+            estructura = collection.find_one({
+                'archivo_origen': archivo_origen,
+                'tipo': 'estructura_completa'
+            })
+
+            if estructura:
+                return estructura
+
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error obteniendo estructura completa: {e}")
+            return {}
+
+    def listar_todas_estructuras(self) -> List[Dict[str, Any]]:
+        """
+        Lista todas las estructuras de árbol disponibles
+
+        Returns:
+            Lista de estructuras disponibles
+        """
+        try:
+            collection = self.connection.get_collection("arbol_conceptos")
+            if collection is None:
+                return []
+
+            estructuras = list(collection.find(
+                {'tipo': 'estructura_completa'},
+                {
+                    'archivo_origen': 1,
+                    'fecha_creacion': 1,
+                    'metadata': 1
+                }
+            ).sort('fecha_creacion', -1))
+
+            return estructuras
+
+        except Exception as e:
+            logger.error(f"Error listando estructuras: {e}")
+            return []
+
+    def obtener_estadisticas_estructura(
+        self,
+        archivo_origen: str = None
+    ) -> Dict[str, Any]:
+        """
+        Obtiene estadísticas de las estructuras guardadas
+
+        Args:
+            archivo_origen: Archivo específico o None para todas
+
+        Returns:
+            Estadísticas de las estructuras
+        """
+        try:
+            collection = self.connection.get_collection("arbol_conceptos")
+            if collection is None:
+                return {}
+
+            filtro = {'tipo': 'estructura_completa'}
+            if archivo_origen:
+                filtro['archivo_origen'] = archivo_origen
+
+            pipeline = [
+                {'$match': filtro},
+                {'$group': {
+                    '_id': None,
+                    'total_estructuras': {'$sum': 1},
+                    'total_nodos': {'$sum': '$metadata.total_nodos'},
+                    'importe_total_global': {'$sum': '$metadata.importe_total_presupuesto'},
+                    'archivos': {'$push': '$archivo_origen'}
+                }}
+            ]
+
+            resultado = list(collection.aggregate(pipeline))
+
+            if resultado:
+                stats = resultado[0]
+                del stats['_id']
+                return stats
+
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error calculando estadísticas de estructura: {e}")
+            return {}

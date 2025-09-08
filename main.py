@@ -146,7 +146,7 @@ class BC3ArbolOnlyReader:
             repository = BC3ArbolRepository(self.connection)
             if sobrescribir:
                 logger.info(" Eliminando árbol existente...")
-                repository.eliminar_arbol(archivo_name)
+                repository.eliminar_estructura_arbol(archivo_name)
 
             # Paso 7: Guardar ÚNICAMENTE la estructura de árbol
             logger.info(
@@ -156,7 +156,7 @@ class BC3ArbolOnlyReader:
             arbol.archivo_origen = archivo_name
 
             # Guardar solo el árbol usando el método específico
-            resultado_arbol = repository.save_solo_arbol(arbol)
+            resultado_arbol = repository.save_solo_estructura_arbol(arbol)
 
             if resultado_arbol.get('error'):
                 logger.error(

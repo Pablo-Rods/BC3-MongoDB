@@ -230,7 +230,9 @@ class ArbolConceptos(BC3BaseModel):
     ):
         """Agrega una medición a un concepto especifico"""
         if codigo_concepto in self.nodos:
-            self.nodos[codigo_concepto].agregar_medicion(medicion)
+            if (self.nodos[codigo_concepto].codigo_padre
+                    == medicion.codigo_padre):
+                self.nodos[codigo_concepto].agregar_medicion(medicion)
 
     def obtener_hijos_directos(
         self,
