@@ -528,8 +528,11 @@ class BC3ArbolRepository(BC3Repository):
                 'total_nodos': len(arbol.nodos),
                 'nodos_raiz': len(arbol.nodos_raiz),
                 'niveles_maximos': arbol.niveles_maximos,
-                'importe_total': (float(arbol.importe_total_presupuesto)
-                                  if arbol.importe_total_presupuesto else None),
+                'importe_total': (
+                    float(arbol.importe_total_presupuesto)
+                    if arbol.importe_total_presupuesto
+                    else None
+                ),
                 'tipo_importacion': 'solo_estructura'
             }
 
@@ -566,10 +569,23 @@ class BC3ArbolRepository(BC3Repository):
             if estructura_existente:
                 return {
                     'existe': True,
-                    'fecha_creacion': estructura_existente.get('fecha_creacion'),
-                    'total_nodos': estructura_existente.get('metadata', {}).get('total_nodos'),
-                    'niveles_maximos': estructura_existente.get('metadata', {}).get('niveles_maximos'),
-                    'nodos_raiz': estructura_existente.get('metadata', {}).get('nodos_raiz')
+                    'fecha_creacion': (
+                        estructura_existente
+                        .get('fecha_creacion')
+                    ),
+                    'total_nodos': (
+                        estructura_existente
+                        .get('metadata', {})
+                        .get('total_nodos')
+                    ),
+                    'niveles_maximos': (
+                        estructura_existente
+                        .get('metadata', {})
+                        .get('niveles_maximos')),
+                    'nodos_raiz': (
+                        estructura_existente
+                        .get('metadata', {})
+                        .get('nodos_raiz'))
                 }
 
             return {'existe': False}
@@ -696,7 +712,10 @@ class BC3ArbolRepository(BC3Repository):
                     '_id': None,
                     'total_estructuras': {'$sum': 1},
                     'total_nodos': {'$sum': '$metadata.total_nodos'},
-                    'importe_total_global': {'$sum': '$metadata.importe_total_presupuesto'},
+                    'importe_total_global': {
+                        '$sum':
+                        '$metadata.importe_total_presupuesto'
+                    },
                     'archivos': {'$push': '$archivo_origen'}
                 }}
             ]

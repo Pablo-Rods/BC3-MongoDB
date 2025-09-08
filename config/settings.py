@@ -20,13 +20,6 @@ class Settings:
     FIELD_SEPARATOR: str = "|"
     RECORD_SEPARATOR: str = "~"
 
-    # Collections Names - Datos planos
-    CONCEPTOS_COLLECTION: str = "conceptos"
-    DESCOMPOSICIONES_COLLECTION: str = "descomposiciones"
-    MEDICIONES_COLLECTION: str = "mediciones"
-    TEXTOS_COLLECTION: str = "textos"
-    METADATA_COLLECTION: str = "metadata"
-
     # Collections Names - Estructura de árbol
     ARBOL_COLLECTION: str = "arbol_conceptos"
     NODOS_COLLECTION: str = "nodos_arbol"
@@ -64,17 +57,6 @@ class Settings:
             'arbol': cls.ARBOL_COLLECTION,
             'nodos': cls.NODOS_COLLECTION,
             'relaciones': cls.RELACIONES_COLLECTION
-        }
-
-    @classmethod
-    def get_collections_datos_planos(cls) -> dict:
-        """Obtiene todas las colecciones de datos planos"""
-        return {
-            'conceptos': cls.CONCEPTOS_COLLECTION,
-            'descomposiciones': cls.DESCOMPOSICIONES_COLLECTION,
-            'mediciones': cls.MEDICIONES_COLLECTION,
-            'textos': cls.TEXTOS_COLLECTION,
-            'metadata': cls.METADATA_COLLECTION
         }
 
 

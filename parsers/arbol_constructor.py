@@ -27,7 +27,8 @@ class ArbolConstructor:
         mediciones: List[Medicion]
     ) -> ArbolConceptos:
         """
-        Construye el árbol completo de conceptos con asociación mejorada de mediciones
+        Construye el árbol completo de conceptos con asociación
+        mejorada de mediciones
 
         Args:
             conceptos: Lista de conceptos
