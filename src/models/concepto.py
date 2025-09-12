@@ -1,4 +1,4 @@
-from models.base_model import BC3BaseModel
+from src.models.base_model import BC3BaseModel
 
 from decimal import Decimal
 from typing import Optional
@@ -63,13 +63,34 @@ class Concepto(BC3BaseModel):
             Decimal: lambda v: float(v)
         }
 
-    # TODO: ¿Hay una mejor forma?
     def determinar_tipo(self):
         """Calcula las propiedades derivadas"""
         if self.tipo:
-            tipo_num = int(self.tipo)
-            self.es_capitulo = tipo_num in [0, 1]
-            self.es_partida = tipo_num in [2, 3]
+            try:
+                # Limpiar el tipo antes de convertir
+                tipo_limpio = self.tipo.strip()
+
+                # Manejar casos especiales
+                if tipo_limpio == '%':
+                    tipo_num = 0
+                elif tipo_limpio.isdigit():
+                    tipo_num = int(tipo_limpio)
+                else:
+                    # Si no es un número, intentar extraer el primer dígito
+                    import re
+                    match = re.search(r'\d+', tipo_limpio)
+                    if match:
+                        tipo_num = int(match.group())
+                    else:
+                        # Si no hay números, usar tipo por defecto
+                        tipo_num = 0
+
+                self.es_capitulo = tipo_num in [0, 1]
+                self.es_partida = tipo_num in [2, 3]
+
+            except (ValueError, TypeError):
+                self.es_capitulo = False
+                self.es_partida = False
 
         if self.codigo:
             self.nivel = self.codigo.count("#") + 1

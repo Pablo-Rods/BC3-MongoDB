@@ -1,6 +1,6 @@
-from models.base_model import BC3BaseModel
-from models.medicion import Medicion
-from models.concepto import Concepto
+from src.models.base_model import BC3BaseModel
+from src.models.medicion import Medicion
+from src.models.concepto import Concepto
 
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
@@ -230,9 +230,7 @@ class ArbolConceptos(BC3BaseModel):
     ):
         """Agrega una medición a un concepto especifico"""
         if codigo_concepto in self.nodos:
-            if (self.nodos[codigo_concepto].codigo_padre
-                    == medicion.codigo_padre):
-                self.nodos[codigo_concepto].agregar_medicion(medicion)
+            self.nodos[codigo_concepto].agregar_medicion(medicion)
 
     def obtener_hijos_directos(
         self,

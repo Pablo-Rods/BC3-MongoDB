@@ -1,8 +1,8 @@
-from models.descomposicion import Descomposicion, ComponenteDescomposicion
-from models.medicion import Medicion, LineaMedicion
-from models.texto import Texto, TextoPliego
-from models.concepto import Concepto
-from config.settings import settings
+from src.models.descomposicion import Descomposicion, ComponenteDescomposicion
+from src.models.medicion import Medicion, LineaMedicion
+from src.models.texto import Texto, TextoPliego
+from src.models.concepto import Concepto
+from src.config.settings import settings
 
 from decimal import Decimal, InvalidOperation
 from typing import Optional, List

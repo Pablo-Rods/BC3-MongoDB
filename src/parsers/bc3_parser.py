@@ -1,9 +1,9 @@
-from models.descomposicion import Descomposicion
-from parsers.record_parsers import RecordParser
-from models.texto import Texto, TextoPliego
-from models.medicion import Medicion
-from models.concepto import Concepto
-from config.settings import settings
+from src.models.descomposicion import Descomposicion
+from src.parsers.record_parsers import RecordParser
+from src.models.texto import Texto, TextoPliego
+from src.models.medicion import Medicion
+from src.models.concepto import Concepto
+from src.config.settings import settings
 
 from typing import List, Any, Dict
 from pathlib import Path
@@ -225,7 +225,10 @@ class BC3Parser:
             self.textos_pliegos.append(texto_pliego)
 
     def __post_process(self):
-        precios = {c.codigo: c.precio for c in self.conceptos if c.precio}
+        precios = {
+            c.codigo: c.precio for c in self.conceptos
+            if c.precio is not None
+        }
 
         for desc in self.descomposiciones:
             desc.calcular_totales(precios)
