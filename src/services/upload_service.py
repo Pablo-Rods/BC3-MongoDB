@@ -1,10 +1,10 @@
-from database.connection import MongoDBConnection
-from database.repository_arbol import BC3ArbolRepository
-from parsers.arbol_constructor import ArbolConstructor
-from parsers.bc3_parser import BC3Parser
-from utils.helpers import BC3Helpers
-from utils.arbol_validator import ArbolValidator
-from config.settings import settings
+from src.database.connection import MongoDBConnection
+from src.database.repository_arbol import BC3ArbolRepository
+from src.parsers.arbol_constructor import ArbolConstructor
+from src.parsers.bc3_parser import BC3Parser
+from src.utils.helpers import BC3Helpers
+from src.utils.arbol_validator import ArbolValidator
+from src.config.settings import settings
 
 from typing import Optional
 from pathlib import Path
@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class BC3ArbolOnlyReader:
+class UploadService:
     """Reader BC3 que únicamente guarda la estructura de árbol jerárquico"""
 
     def __init__(
@@ -41,9 +41,10 @@ class BC3ArbolOnlyReader:
     def importar_solo_arbol(
         self,
         filepath: str,
-        exportar_arbol_json: bool = True,
+        archivo_name: str,
+        exportar_arbol_json: bool = False,
         validar_arbol: bool = True,
-        sobrescribir: bool = False
+        sobrescribir: bool = True
     ) -> bool:
         """
         Importa un archivo BC3 y guarda ÚNICAMENTE la estructura de árbol
@@ -67,7 +68,6 @@ class BC3ArbolOnlyReader:
             logger.info(f" Archivo: {filepath}")
 
             # Verificar si ya existe el árbol
-            archivo_name = Path(filepath).name
             if not sobrescribir:
                 with MongoDBConnection(self.mongo_uri, self.database) as conn:
                     repo_temp = BC3ArbolRepository(conn)
@@ -336,8 +336,3 @@ class BC3ArbolOnlyReader:
         except Exception as e:
             logger.error(f" Error obteniendo estadísticas: {e}")
             return {}
-
-
-if __name__ == '__main__':
-    reader = BC3ArbolOnlyReader()
-    reader.importar_solo_arbol('./data/prueba.bc3', sobrescribir=True)

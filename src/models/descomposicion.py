@@ -1,4 +1,4 @@
-from models.base_model import BC3BaseModel
+from src.models.base_model import BC3BaseModel
 
 from typing import Optional, List, Dict
 from decimal import Decimal

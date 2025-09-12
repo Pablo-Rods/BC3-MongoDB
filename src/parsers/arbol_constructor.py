@@ -1,7 +1,7 @@
-from models.arbol_conceptos import ArbolConceptos, NodoConcepto
-from models.descomposicion import Descomposicion
-from models.medicion import Medicion
-from models.concepto import Concepto
+from src.models.arbol_conceptos import ArbolConceptos, NodoConcepto
+from src.models.descomposicion import Descomposicion
+from src.models.medicion import Medicion
+from src.models.concepto import Concepto
 
 from typing import Dict, Set, List
 from collections import defaultdict, deque
@@ -48,8 +48,8 @@ class ArbolConstructor:
         self._crear_nodos(conceptos)
         self._procesar_descomposiciones(descomposiciones)
         self._detectar_jerarquia_por_codigo(conceptos)
-        self._construir_estructura_final()
         self._asociar_mediciones(mediciones)
+        self._construir_estructura_final()
         self.arbol.calcular_importes_arbol()
 
         logger.info(f"Árbol construido: {self.arbol.total_nodos} nodos, "
@@ -108,7 +108,7 @@ class ArbolConstructor:
         relaciones = 0
 
         for desc in descomposiciones:
-            codigo_padre = desc.codigo_padre
+            codigo_padre = desc.codigo_padre.split("#")[0]
 
             # Verificar que el padre existe
             if codigo_padre not in self.arbol.nodos:
@@ -117,7 +117,7 @@ class ArbolConstructor:
                 continue
 
             for componente in desc.componentes:
-                codigo_hijo = componente.codigo_componente
+                codigo_hijo = componente.codigo_componente.split("#")[0]
 
                 # Verificar que el hijo existe
                 if codigo_hijo not in self.arbol.nodos:
@@ -127,6 +127,7 @@ class ArbolConstructor:
 
                 # Establecer relación
                 self.relaciones_padre_hijo[codigo_padre].add(codigo_hijo)
+                self.arbol.nodos[codigo_hijo].codigo_padre = codigo_padre
                 relaciones += 1
 
                 logger.debug(f"Relación: {codigo_padre} -> {codigo_hijo}")
@@ -237,10 +238,10 @@ class ArbolConstructor:
         con validación de contexto padre-hijo
 
         REGLAS DE ASOCIACIÓN:
-        1. Si medicion.codigo_padre existe:
-            asociar solo si el concepto tiene ese padre
-        2. Si medicion.codigo_padre es None:
-            asociar directamente al codigo_hijo
+        1. Si medicion.codigo_padre existe: asociar solo
+            si el concepto tiene ese padre
+        2. Si medicion.codigo_padre es None: asociar directamente
+            al codigo_hijo
         3. Registro detallado de asociaciones y rechazos
         """
         stats = {
@@ -254,14 +255,14 @@ class ArbolConstructor:
             "Iniciando asociación de mediciones con validación padre-hijo...")
 
         for medicion in mediciones:
-            codigo_concepto = medicion.codigo_hijo
-            codigo_padre_medicion = medicion.codigo_padre
+            codigo_concepto = medicion.codigo_hijo.split("#")[0]
+            codigo_padre_medicion = medicion.codigo_padre.split("#")[0]
 
             # Verificar que el concepto hijo existe
             if codigo_concepto not in self.arbol.nodos:
                 logger.debug(
-                    f"Concepto {codigo_concepto} no encontrado" +
-                    "- medición rechazada")
+                    f"Concepto {codigo_concepto} no encontrado -"
+                    "medición rechazada")
                 stats['mediciones_sin_concepto'] += 1
                 continue
 
@@ -269,10 +270,8 @@ class ArbolConstructor:
 
             # CASO 1: Medición con código padre específico
             if codigo_padre_medicion is not None:
-                # Verificar que el padre del concepto coincide
-                # con el padre de la medición
                 if nodo_concepto.codigo_padre == codigo_padre_medicion:
-                    # ASOCIACIÓN VÁLIDA: padre coincide
+                    #  ASOCIACIÓN VÁLIDA: padre coincide
                     self.arbol.agregar_medicion_a_concepto(
                         codigo_concepto, medicion)
                     stats['mediciones_asociadas'] += 1
@@ -292,17 +291,17 @@ class ArbolConstructor:
                     )
 
             # CASO 2: Medición sin código padre (mediciones no estructuradas)
-            else:
-                #  ASOCIACIÓN DIRECTA: sin restricción de padre
-                self.arbol.agregar_medicion_a_concepto(
-                    codigo_concepto, medicion)
-                stats['mediciones_asociadas'] += 1
-                stats['mediciones_sin_padre_definido'] += 1
+            # else:
+            #     #  ASOCIACIÓN DIRECTA: sin restricción de padre
+            #     self.arbol.agregar_medicion_a_concepto(
+            #         codigo_concepto, medicion)
+            #     stats['mediciones_asociadas'] += 1
+            #     stats['mediciones_sin_padre_definido'] += 1
 
-                logger.debug(
-                    f" Medición directa asociada: {codigo_concepto} "
-                    f"(sin padre definido)"
-                )
+            #     logger.debug(
+            #         f" Medición directa asociada: {codigo_concepto} "
+            #         f"(sin padre definido)"
+            #     )
 
         # Logging de resultados
         logger.info("=== RESULTADOS ASOCIACIÓN DE MEDICIONES ===")

@@ -1,4 +1,4 @@
-from models.arbol_conceptos import ArbolConceptos
+from src.models.arbol_conceptos import ArbolConceptos
 
 from typing import Dict, List
 

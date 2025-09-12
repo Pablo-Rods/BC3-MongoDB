@@ -1,6 +1,6 @@
-from models.arbol_conceptos import ArbolConceptos
-from database.connection import MongoDBConnection
-from database.repository import BC3Repository
+from src.models.arbol_conceptos import ArbolConceptos
+from src.database.connection import MongoDBConnection
+from src.database.repository import BC3Repository
 
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -732,3 +732,61 @@ class BC3ArbolRepository(BC3Repository):
         except Exception as e:
             logger.error(f"Error calculando estadísticas de estructura: {e}")
             return {}
+
+    def obtener_mediciones_por_capitulo(
+        self,
+        archivo_origen: str = None
+    ) -> List[Dict[str, Any]]:
+        """Obtiene estadísticas de mediciones agrupadas por capítulo"""
+        try:
+            collection = self.connection.get_collection("nodos_arbol")
+            if collection is None:
+                return []
+
+            filtro_match = {}
+            if archivo_origen:
+                filtro_match['archivo_origen'] = archivo_origen
+
+            pipeline = [
+                {'$match': filtro_match},
+                {
+                    '$addFields': {
+                        'capitulo_raiz': {
+                            '$cond': {
+                                'if': {'$eq':
+                                       ['$estructura.nivel_jerarquico', 0]},
+                                'then': '$codigo',
+                                'else': {'$arrayElemAt':
+                                         ['$estructura.ruta_completa', 0]}
+                            }
+                        }
+                    }
+                },
+                {
+                    '$group': {
+                        '_id': '$capitulo_raiz',
+                        'total_mediciones': {'$sum':
+                                             '$estadisticas.numero_mediciones'
+                                             },
+                        'medicion_total': {'$sum':
+                                           '$estadisticas.medicion_total'
+                                           },
+                        'nodos_con_mediciones': {
+                            '$sum': {
+                                '$cond': [
+                                    {'$gt': [
+                                        '$estadisticas.numero_mediciones',
+                                        0
+                                    ]}, 1, 0]
+                            }
+                        }
+                    }
+                },
+                {'$sort': {'_id': 1}}
+            ]
+
+            return list(collection.aggregate(pipeline))
+
+        except Exception as e:
+            logger.error(f"Error obteniendo mediciones por capítulo: {e}")
+            return []
