@@ -4,3 +4,6 @@ data
 **/__pycache__
 *.log
 *.json
+.coverage
+**/*_cache
+/htmlcov
